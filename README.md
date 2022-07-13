@@ -34,5 +34,23 @@ Pokedéx (App para Android) -> Lista e detalha pokémons por tipo, nome e de for
 - ``Android Studio (InteliJ IDEA)``
 - ``Paradigma de orientação a objetos``
 
+## ✔️ Bibliotebas utilizadas
 
+- ``retrofit 2``
+- ``okHttp 3``
+- ``Coil``
+- ``View Model``
+- ``Live Data``
+
+```
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+
+    implementation "com.squareup.okhttp3:logging-interceptor:4.9.3"
+
+    implementation "io.coil-kt:coil:2.1.0"
+
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.0-alpha02"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.5.0-alpha02"
+```
 
