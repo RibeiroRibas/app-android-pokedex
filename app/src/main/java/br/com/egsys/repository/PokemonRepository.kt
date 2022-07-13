@@ -2,8 +2,8 @@ package br.com.egsys.repository
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import br.com.egsys.model.NamedAPIResource
 import br.com.egsys.model.Pokemon
-import br.com.egsys.model.TotalPokemons
 import br.com.egsys.model.Type
 import br.com.egsys.model.TypePokemon
 import br.com.egsys.retrofit.PokemonWebClient
@@ -11,21 +11,20 @@ import br.com.egsys.retrofit.PokemonWebClient
 class PokemonRepository(
     private val webClient: PokemonWebClient = PokemonWebClient()
 ) {
-    private val totalPokemonsLiveData = MutableLiveData<Resource<TotalPokemons?>>()
     private val pokemonTypeLiveData = MutableLiveData<Resource<Type?>>()
 
     fun getPokemonByName(name: String): LiveData<Resource<Pokemon?>> {
-        val pokemonLiveData = MutableLiveData<Resource<Pokemon?>>()
+        val mutablePokemon = MutableLiveData<Resource<Pokemon?>>()
         webClient.getPokemonByName(
             name = name,
             onSuccess = { pokemon ->
-                pokemonLiveData.value = Resource(data = pokemon)
+                mutablePokemon.value = Resource(data = pokemon)
             },
             onError = { error ->
-                pokemonLiveData.value = Resource(data = null, error = error)
+                mutablePokemon.value = Resource(data = null, error = error)
             }
         )
-        return pokemonLiveData
+        return mutablePokemon
     }
 
     fun getTypes(): LiveData<Resource<Type?>> {
@@ -43,16 +42,17 @@ class PokemonRepository(
 
     fun getPokemonsByType(
         position: Int,
-        resource: (Resource<MutableList<Pokemon?>>) -> Unit,
+        resource: (Resource<MutableList<Pokemon?>>) -> Unit
     ) {
         webClient.getPokemonsByType(
             id = position,
             onSuccess = { pokemonsByType ->
-                val pokemons = pokemonsByType?.pokemon
-                pokemons?.let { getPokemonsDetails(it, resource) }
+                pokemonsByType?.pokemon?.let { pokemons ->
+                    getPokemonsDetails(pokemons, resource)
+                }
             },
             onError = { error ->
-                resource(Resource(error = error, data = null))
+                Resource(error = error, data = null)
             }
         )
     }
@@ -75,17 +75,27 @@ class PokemonRepository(
         }
     }
 
-    fun getTotalPokemons(): LiveData<Resource<TotalPokemons?>> {
-        if (totalPokemonsLiveData.value == null)
-            webClient.getTotalPokemons(
-                onSuccess = { totalPokemons ->
-                    totalPokemonsLiveData.value = Resource(data = totalPokemons)
-                },
-                onError = { error ->
-                    totalPokemonsLiveData.value = Resource(data = null, error = error)
+    fun getRandomPokemon(): LiveData<Resource<Pokemon?>> {
+        val mutablePokemon = MutableLiveData<Resource<Pokemon?>>()
+        webClient.getTotalPokemons(
+            onSuccess = { totalPokemons ->
+                val randomPokemon = totalPokemons?.let { pokemons ->
+                    sortRandomPokemon(pokemons.results)
                 }
-            )
-        return totalPokemonsLiveData
+                randomPokemon?.name?.let { pokemonName ->
+                    getPokemonByName(pokemonName,
+                        onSuccess = { pokemon ->
+                            mutablePokemon.value = Resource(data = pokemon)
+                        }, onError = { error ->
+                            mutablePokemon.value = Resource(data = null, error = error)
+                        })
+                }
+            },
+            onError = { error ->
+                mutablePokemon.value = Resource(data = null, error = error)
+            }
+        )
+        return mutablePokemon
     }
 
     private fun getPokemonByName(
@@ -98,6 +108,11 @@ class PokemonRepository(
             onSuccess = onSuccess,
             onError = onError
         )
+    }
+
+    private fun sortRandomPokemon(totalPokemons: List<NamedAPIResource>): NamedAPIResource {
+        val diceRange = 1..totalPokemons.size
+        return totalPokemons[diceRange.random()]
     }
 
 }

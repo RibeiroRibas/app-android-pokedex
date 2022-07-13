@@ -8,12 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import br.com.egsys.databinding.ActivityHomeBinding
 import br.com.egsys.ui.extensions.showError
 import br.com.egsys.model.*
+import br.com.egsys.repository.Resource
 import br.com.egsys.retrofit.POKEMON_NOT_FOUND
 import br.com.egsys.ui.adapter.PokemonListAdapter
 import br.com.egsys.ui.fragment.PokemonDetailFragment
 import br.com.egsys.viewmodel.HomeViewModel
 
-private const val TAG_POKEMON = "pokemon"
+const val POKEMON = "pokemon"
 private const val EMPTY_FIELD = "Insira o nome do Pokemon para realizar a busca"
 
 class HomeActivity : AppCompatActivity() {
@@ -48,7 +49,41 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         adapterPokemonTypesObserver() // AutoCompleteTextView
-        pokemonListObserver()
+        pokemonsObserver()
+    }
+
+    private fun pokemonsObserver() {
+        viewModel.pokemonsLiveData.observe(this) { resource ->
+            resource.data?.let { pokemons ->
+                binding.activityHomeProgressBar.visibility = View.GONE
+                adapter.update(pokemons)
+            }
+            resource.error?.let { error ->
+                showError(error)
+            }
+        }
+    }
+
+    private fun pokemonObserver(resource: Resource<Pokemon?>) {
+        resource.data.let { pokemon ->
+            if (pokemon == null) {
+                showError(POKEMON_NOT_FOUND)
+            } else {
+                val pokemonDetailFragment = pokemonDetailFragment(pokemon)
+                pokemonDetailFragment.show(supportFragmentManager, POKEMON)
+            }
+        }
+        resource.error?.let { error ->
+            showError(error)
+        }
+    }
+
+    private fun pokemonDetailFragment(pokemon: Pokemon): PokemonDetailFragment {
+        val pokemonDetailFragment = PokemonDetailFragment()
+        val bundle = Bundle()
+        bundle.putSerializable(POKEMON, pokemon)
+        pokemonDetailFragment.arguments = bundle
+        return pokemonDetailFragment
     }
 
     private fun searchPokemonByNameListener() {
@@ -57,7 +92,9 @@ class HomeActivity : AppCompatActivity() {
                 showError(EMPTY_FIELD)
             } else {
                 val pokemonName = binding.activityHomePokemonNameSearch.text.toString().lowercase()
-                getPokemonByNameObserver(pokemonName)
+                viewModel.getPokemonByName(pokemonName).observe(this) { resource ->
+                    pokemonObserver(resource)
+                }
             }
         }
     }
@@ -65,68 +102,33 @@ class HomeActivity : AppCompatActivity() {
     private fun isInputPokemonNameEmpty() =
         binding.activityHomePokemonNameSearch.text.toString().isEmpty()
 
-    private fun pokemonListObserver() {
-        viewModel.getPokemons.observe(this) { resource ->
-            resource?.data.let { pokemons ->
-                binding.activityHomeProgressBar.visibility = View.GONE
-                pokemons?.let { adapter.update(it) }
-            }
-            resource?.error.let { error ->
-                error?.let { errorMessage -> showError(errorMessage) }
-            }
-        }
-    }
-
     private fun randomPokemonListener() {
         binding.activityHomeRandomPokeball.setOnClickListener {
-            viewModel.getTotalPokemons().observe(this, { resource ->
-                resource?.data.let { totalPokemons ->
-                    val pokemon = totalPokemons?.let { pokemons ->
-                        sortRandomPokemon(pokemons.results)
-                    }
-                    pokemon?.let { getPokemonByNameObserver(it.name) }
-                }
-                resource?.error.let { error ->
-                    error?.let { errorMessage -> showError(errorMessage) }
-                }
-            })
-        }
-    }
-
-    private fun sortRandomPokemon(totalPokemons: List<NamedAPIResource>): NamedAPIResource {
-        val diceRange = 1..totalPokemons.size
-        return totalPokemons[diceRange.random()]
-    }
-
-    private fun getPokemonByNameObserver(pokemonName: String) {
-        viewModel.getPokemonByName(pokemonName).observe(this) { resource ->
-            resource?.data.let { pokemon ->
-                if(pokemon == null){
-                    showError(POKEMON_NOT_FOUND)
-                }else{
-                    viewModel.selectedPokemon(pokemon)
-                    val pokemonDetailFragment = PokemonDetailFragment()
-                    pokemonDetailFragment.show(supportFragmentManager, TAG_POKEMON)
-                }
+            viewModel.getRandomPokemon().observe(this) { resource ->
+                showError("apenas um teste")
+                pokemonObserver(resource)
             }
         }
     }
 
     private fun onClickPokemonListener() {
         adapter.onPokemonClickListener = { selectedPokemon ->
-            val pokemonDetailFragment = PokemonDetailFragment()
-            pokemonDetailFragment.show(supportFragmentManager, TAG_POKEMON)
-            viewModel.selectedPokemon(selectedPokemon)
+            val pokemonDetailFragment = pokemonDetailFragment(selectedPokemon)
+            pokemonDetailFragment.show(supportFragmentManager, POKEMON)
         }
     }
 
     private fun getPokemonsByTypeListener() {
         binding.activityHomeInputTypePokemon.setOnItemClickListener { _, _, position, _ ->
-            viewModel.clearPokemonListByType()
+            viewModel.clearPokemonsLiveData()
             binding.activityHomeProgressBar.visibility = View.VISIBLE
             val pokemonType = getTypePokemonNameByPositionAdapter(position)
-            viewModel.getPokemonsByType(pokemonType) // observer inside onResume
+            getPokemonsByType(pokemonType)
         }
+    }
+
+    private fun getPokemonsByType(pokemonType: Int) {
+        viewModel.getPokemonsByType(pokemonType)
     }
 
     private fun getTypePokemonNameByPositionAdapter(position: Int) = position + 1
@@ -137,12 +139,12 @@ class HomeActivity : AppCompatActivity() {
 
     private fun adapterPokemonTypesObserver() {
         viewModel.getTypes().observe(this) { resource ->
-            resource?.data.let { types ->
+            resource.data?.let { types ->
                 val pokemonTypes = getPokemonTypes(types)
                 setAdapterPokemonTypes(pokemonTypes)
             }
-            resource?.error.let { error ->
-                error?.let { errorMessage -> showError(errorMessage) }
+            resource.error?.let { error ->
+                showError(error)
             }
         }
     }
@@ -154,9 +156,8 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun getPokemonTypes(types: Type?): List<String>? {
-        val results = types?.results
-        return results?.map { pokemonTypes ->
+    private fun getPokemonTypes(types: Type): List<String>? {
+        return types.results.map { pokemonTypes ->
             pokemonTypes.name
         }
     }

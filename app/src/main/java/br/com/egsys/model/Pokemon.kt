@@ -1,12 +1,14 @@
 package br.com.egsys.model
 
+import java.io.Serializable
+
 data class Pokemon(
     val name: String,
     val height: String,
     val weight: Int,
     val types: List<PokemonType> = emptyList(),
     val sprites: PokemonSprites
-) {
+) : Serializable{
     fun concatPokemonType(): String {
         var type = ""
         for (i in types.indices) {
