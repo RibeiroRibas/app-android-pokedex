@@ -1,4 +1,4 @@
-![POKEDEX](https://user-images.githubusercontent.com/96504657/178718377-e5d72e85-cba0-4857-bae5-4530f7352ca5.jpg)
+# Pokedéx
 
 ![Badge kotlin](https://img.shields.io/badge/kotlin-language-purple)
 ![Badge android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
